@@ -14,13 +14,15 @@ object Intro extends App {
   aThread.join() // blocks until aThread finishes running
 
   val threadHello = new Thread(() => (1 to 5).foreach(_ => println("hello")))
-  val threadGoodbye = new Thread(() => (1 to 5).foreach(_ => println("goodbye")))
-  threadHello.start()
-  threadGoodbye.start()
+  val threadGoodbye = new Thread(() =>
+    (1 to 5).foreach(_ => println("goodbye"))
+  )
+  // threadHello.start()
+  // threadGoodbye.start()
 
   // Executors
   val pool = Executors.newFixedThreadPool(10)
-  pool.execute(() => println("something in the thread pool"))
+  // pool.execute(() => println("something in the thread pool"))
 
   pool.execute(() => {
     Thread.sleep(1000)
@@ -51,5 +53,45 @@ object Intro extends App {
     thread2.start()
     println(x)
   }
-  for (_ <- 1 to 100) runInParallel
+  // for (_ <- 1 to 100) runInParallel
+  // race condition
+
+  class BankAccount(@volatile var amount: Int) {
+    override def toString(): String = "" + amount
+  }
+
+  def buy(account: BankAccount, thing: String, price: Int) = {
+    account.amount -= price
+    println("Bought: " + thing)
+    println("Account: " + account)
+  }
+
+  for (_ <- 1 to 100) {
+    val account = new BankAccount(50000)
+    val thread1 = new Thread(() => buy(account, "shoes", 3000))
+    val thread2 = new Thread(() => buy(account, "phone", 4000))
+
+    thread1.start()
+    thread2.start()
+    Thread.sleep(10)
+    println(" -- ")
+  }
+  // race condition as well
+
+  // option 1 - use synchronized()
+  def buySafe(account: BankAccount, thing: String, price: Int) = {
+    account.synchronized {
+      // no two threads can evaluate this at the same time
+      account.amount -= price
+      println("Bought: " + thing)
+      println("Account: " + account)
+    }
+  }
+
+  // option 2 - use @volatile annotation
+
+  var x = 0
+  val threads = (1 to 100).map(_ => new Thread(() => x += 1))
+  threads.foreach(_.start())
+
 }
