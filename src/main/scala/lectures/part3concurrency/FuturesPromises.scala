@@ -8,6 +8,7 @@ import scala.util.Random
 import scala.concurrent.Await
 import scala.concurrent.duration._
 import scala.concurrent.Promise
+import scala.util.Try
 
 object FuturesPromises extends App {
 
@@ -166,4 +167,21 @@ object FuturesPromises extends App {
 
   producer.start()
   Thread.sleep(1000)
+
+  // #1
+  def fulfillImmediately[T](value: T): Future[T] = Future(value)
+
+  // #2
+  def inSequence[A, B](first: Future[A], second: Future[B]): Future[B] =
+    first.flatMap(_ => second)
+
+  // #3
+  def first[A](fa: Future[A], fb: Future[A]): Future[A] = {
+    val promise = Promise[A]
+
+    fa.onComplete(promise.tryComplete)
+    fb.onComplete(promise.tryComplete)
+
+    promise.future
+  }
 }
