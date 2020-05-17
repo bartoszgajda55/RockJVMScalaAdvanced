@@ -5,6 +5,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Success
 import scala.util.Failure
 import scala.util.Random
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.concurrent.Promise
 
 object FuturesPromises extends App {
 
@@ -100,4 +103,67 @@ object FuturesPromises extends App {
   val fallbackResult = SocialNetwork
     .fetchProfile("unknown id")
     .fallbackTo(SocialNetwork.fetchProfile("fb.id.0-dummy"))
+
+  case class User(name: String)
+  case class Transaction(
+      sender: String,
+      receiver: String,
+      amount: Double,
+      status: String
+  )
+
+  object BankingApp {
+    val name = "The Bank App"
+
+    def fetchUser(name: String): Future[User] = Future {
+      // some long computation
+      Thread.sleep(500)
+      User(name)
+    }
+
+    def createTransaction(
+        user: User,
+        merchantName: String,
+        amount: Double
+    ): Future[Transaction] = Future {
+      // another long computation
+      Thread.sleep(1000)
+      Transaction(user.name, merchantName, amount, "success")
+    }
+
+    def purchase(
+        username: String,
+        item: String,
+        merchantName: String,
+        cost: Double
+    ): String = {
+      val transactionStatysFuture = for {
+        user <- fetchUser(username)
+        transaction <- createTransaction(user, merchantName, cost)
+      } yield transaction.status
+
+      Await.result(transactionStatysFuture, 2.seconds) // implicit conversions
+    }
+  }
+
+  println(BankingApp.purchase("John", "TV", "Amazon", 1000))
+
+  // Promises
+  val promise = Promise[Int]()
+  val future = promise.future
+
+  future.onComplete {
+    case Success(value)     => println("consumer have received a value " + value)
+    case Failure(exception) => println(exception.printStackTrace())
+  }
+
+  val producer = new Thread(() => {
+    println("producer crunching numbers...")
+    Thread.sleep(500)
+    promise.success(42)
+    println("producer done")
+  })
+
+  producer.start()
+  Thread.sleep(1000)
 }
