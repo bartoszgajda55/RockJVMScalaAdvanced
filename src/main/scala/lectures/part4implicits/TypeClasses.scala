@@ -35,7 +35,7 @@ object TypeClasses extends App {
     def serialize(value: T): String
   }
 
-  object UserSerializer extends HTMLSerializer[User] {
+  implicit object UserSerializer extends HTMLSerializer[User] {
     def serialize(user: User): String =
       s"<div>${user.name} (${user.age}) <a href=${user.email}>Email</a></div>"
   }
@@ -58,7 +58,7 @@ object TypeClasses extends App {
     def serialize[T](value: T)(implicit serializer: HTMLSerializer[T]): String =
       serializer.serialize(value)
 
-    def apply[T](implicit serializer: HTMLSerializer[T]): serializer
+    // def apply[T](implicit serializer: HTMLSerializer[T]): serializer
   }
 
   implicit object IntSerializer extends HTMLSerializer[Int] {
@@ -66,7 +66,7 @@ object TypeClasses extends App {
   }
 
   println(HTMLSerializer.serialize(42))
-  println(HTMLSerializer[User].serialize(john))
+  // println(HTMLSerializer[User].serialize(john))
 
   trait Equal[T] {
     def apply(a: T, b: T): Boolean
@@ -81,8 +81,58 @@ object TypeClasses extends App {
     override def apply(a: User, b: User): Boolean = a.name == b.name
   }
 
+  // Ad-hoc polymporphism
   val anotherJohn = User("John", 25, "john2@test.com")
   println(Equal(john, anotherJohn))
 
-  // Ad-hoc polymporphism
+  // part 3
+  implicit class HTMLEnrichment[T](value: T) {
+    def toHTML(implicit serializer: HTMLSerializer[T]): String =
+      serializer.serialize(value)
+  }
+
+  println(
+    john.toHTML
+  ) // = println(new HTMLEnrichment[User](john).toHTML(UserSerializer))
+  /**
+    * 1 - extend to new types
+    * 2 - choose implementation (import serializer or pass it explicitly)
+    * 3 - super expressive!
+    */
+  println(2.toHTML)
+
+  /** Elements of enhancing with Type Class
+    * - type class itself
+    * - type class instances (some of which are implicit)
+    *  - conversions with implicit classes
+    */
+  implicit class TypeSafeEqual[T](value: T) {
+    def ===(other: T)(implicit equalizer: Equal[T]): Boolean =
+      equalizer(value, other)
+    def !==(other: T)(implicit equalizer: Equal[T]): Boolean =
+      !equalizer(value, other)
+  }
+
+  println(john == anotherJohn)
+  // Type Safe
+
+  // println(john == 43) // compiler warns
+  // println(john === 43) // compiler errors
+
+  // context bounds
+  def htmlBoilerplate[T](
+      content: T
+  )(implicit serializer: HTMLSerializer[T]): String =
+    s"<html><body>${content.toHTML(serializer)}</body></html>"
+
+  def htmlSugar[T: HTMLSerializer](content: T): String =
+    s"<html><body>${content.toHTML}</body></html>"
+
+  // implicitly
+  case class Permissions(mask: String)
+  implicit val defaultPermissions: Permissions = Permissions("0744")
+
+  // in some other part of the code
+  val standardPerms = implicitly[Permissions]
+
 }
