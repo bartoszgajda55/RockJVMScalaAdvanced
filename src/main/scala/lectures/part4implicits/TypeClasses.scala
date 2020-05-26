@@ -50,4 +50,39 @@ object TypeClasses extends App {
   trait TypeClassTemplate[T] {
     def action(value: T): String
   }
+  object TypeClassTemplate {
+    def apply[T](implicit instance: TypeClassTemplate[T]) = instance
+  }
+
+  object HTMLSerializer {
+    def serialize[T](value: T)(implicit serializer: HTMLSerializer[T]): String =
+      serializer.serialize(value)
+
+    def apply[T](implicit serializer: HTMLSerializer[T]): serializer
+  }
+
+  implicit object IntSerializer extends HTMLSerializer[Int] {
+    def serialize(value: Int): String = s"<div>$value</div>"
+  }
+
+  println(HTMLSerializer.serialize(42))
+  println(HTMLSerializer[User].serialize(john))
+
+  trait Equal[T] {
+    def apply(a: T, b: T): Boolean
+  }
+
+  object Equal {
+    def apply[T](a: T, b: T)(implicit equalizer: Equal[T]): Boolean =
+      equalizer(a, b)
+  }
+
+  implicit object NameEquality extends Equal[User] {
+    override def apply(a: User, b: User): Boolean = a.name == b.name
+  }
+
+  val anotherJohn = User("John", 25, "john2@test.com")
+  println(Equal(john, anotherJohn))
+
+  // Ad-hoc polymporphism
 }
